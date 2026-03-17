@@ -1,6 +1,4 @@
-import java.util.LinkedList;
-import java.util.Queue;
-
+import java.util.*;
 public class HotelBookingApp {
 
     class Reservation {
@@ -22,41 +20,89 @@ public class HotelBookingApp {
         }
     }
 
-    class BookingQueue {
+    class RoomInventory {
 
-        private Queue<Reservation> queue;
+        private HashMap<String, Integer> inventory;
 
-        public BookingQueue() {
-            queue = new LinkedList<>();
+        public RoomInventory() {
+            inventory = new HashMap<>();
+            inventory.put("Single Room", 2);
+            inventory.put("Double Room", 1);
+            inventory.put("Suite Room", 1);
         }
 
-        public void addRequest(Reservation reservation) {
-            queue.add(reservation);
-            System.out.println("Request Added: " + reservation.getGuestName() + " -> " + reservation.getRoomType());
+        public int getAvailability(String roomType) {
+            return inventory.getOrDefault(roomType, 0);
         }
 
-        public void displayQueue() {
-            System.out.println("\nCurrent Booking Queue:\n");
-
-            for (Reservation r : queue) {
-                System.out.println("Guest: " + r.getGuestName() + ", Room: " + r.getRoomType());
+        public void reduceAvailability(String roomType) {
+            if (inventory.get(roomType) > 0) {
+                inventory.put(roomType, inventory.get(roomType) - 1);
             }
         }
     }
 
-    public class UseCase5BookingRequestQueue {
+    class BookingService {
+
+        private Queue<Reservation> queue;
+        private HashMap<String, Set<String>> allocatedRooms;
+        private int roomCounter = 1;
+
+        public BookingService(Queue<Reservation> queue) {
+            this.queue = queue;
+            allocatedRooms = new HashMap<>();
+        }
+
+        public void processBookings(RoomInventory inventory) {
+
+            System.out.println("Processing Bookings...\n");
+
+            while (!queue.isEmpty()) {
+
+                Reservation r = queue.poll();
+                String type = r.getRoomType();
+
+                if (inventory.getAvailability(type) > 0) {
+
+                    String roomId = generateRoomId(type);
+
+                    allocatedRooms.putIfAbsent(type, new HashSet<>());
+                    allocatedRooms.get(type).add(roomId);
+
+                    inventory.reduceAvailability(type);
+
+                    System.out.println("Booking Confirmed:");
+                    System.out.println("Guest: " + r.getGuestName());
+                    System.out.println("Room Type: " + type);
+                    System.out.println("Room ID: " + roomId + "\n");
+
+                } else {
+                    System.out.println("Booking Failed (No Availability): " + r.getGuestName() + " -> " + type + "\n");
+                }
+            }
+        }
+
+        private String generateRoomId(String type) {
+            return type.substring(0, 2).toUpperCase() + roomCounter++;
+        }
+    }
+
+    public class HotelBookingApp {
 
         public static void main(String[] args) {
 
-            System.out.println("Booking Request Queue (FIFO)\n");
+            Queue<Reservation> queue = new LinkedList<>();
 
-            BookingQueue bookingQueue = new BookingQueue();
+            queue.add(new Reservation("Arun", "Single Room"));
+            queue.add(new Reservation("Priya", "Single Room"));
+            queue.add(new Reservation("Rahul", "Single Room")); // will fail
+            queue.add(new Reservation("Neha", "Double Room"));
 
-            bookingQueue.addRequest(new Reservation("Arun", "Single Room"));
-            bookingQueue.addRequest(new Reservation("Priya", "Double Room"));
-            bookingQueue.addRequest(new Reservation("Rahul", "Suite Room"));
+            RoomInventory inventory = new RoomInventory();
 
-            bookingQueue.displayQueue();
+            BookingService bookingService = new BookingService(queue);
+
+            bookingService.processBookings(inventory);
         }
     }
 }
