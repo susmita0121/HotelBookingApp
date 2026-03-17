@@ -1,17 +1,42 @@
-
 import java.util.*;
 
-class RoomInventory {
+class Reservation {
+    String guestName;
+    String roomType;
 
+    public Reservation(String guestName, String roomType) {
+        this.guestName = guestName;
+        this.roomType = roomType;
+    }
+}
+
+class BookingQueue {
+    private Queue<Reservation> queue = new LinkedList<>();
+
+    public synchronized void addRequest(Reservation r) {
+        queue.add(r);
+    }
+
+    public synchronized Reservation getRequest() {
+        return queue.poll();
+    }
+}
+
+class RoomInventory {
     private Map<String, Integer> inventory;
 
     public RoomInventory() {
         inventory = new HashMap<>();
-        inventory.put("Single", 5);
+        inventory.put("Single", 2);
     }
 
-    public void increaseAvailability(String roomType) {
-        inventory.put(roomType, inventory.get(roomType) + 1);
+    public synchronized boolean allocateRoom(String roomType) {
+        int count = inventory.getOrDefault(roomType, 0);
+        if (count > 0) {
+            inventory.put(roomType, count - 1);
+            return true;
+        }
+        return false;
     }
 
     public int getAvailability(String roomType) {
@@ -19,41 +44,32 @@ class RoomInventory {
     }
 }
 
-class CancellationService {
+class BookingProcessor extends Thread {
 
-    private Set<String> confirmedBookings;
-    private Stack<String> rollbackStack;
+    private BookingQueue queue;
+    private RoomInventory inventory;
 
-    public CancellationService() {
-        confirmedBookings = new HashSet<>();
-        rollbackStack = new Stack<>();
+    public BookingProcessor(BookingQueue queue, RoomInventory inventory) {
+        this.queue = queue;
+        this.inventory = inventory;
     }
 
-    public void addBooking(String reservationId) {
-        confirmedBookings.add(reservationId);
-    }
+    public void run() {
+        Reservation r = queue.getRequest();
 
-    public void cancelBooking(String reservationId, String roomType, RoomInventory inventory) {
+        if (r != null) {
+            boolean success = inventory.allocateRoom(r.roomType);
 
-        System.out.println("Booking Cancellation");
-
-        if (!confirmedBookings.contains(reservationId)) {
-            System.out.println("Cancellation failed: Reservation not found");
-            return;
+            if (success) {
+                System.out.println(Thread.currentThread().getName() +
+                        " → Booking confirmed for " + r.guestName +
+                        " (" + r.roomType + ")");
+            } else {
+                System.out.println(Thread.currentThread().getName() +
+                        " → Booking failed for " + r.guestName +
+                        " (" + r.roomType + ")");
+            }
         }
-
-        rollbackStack.push(reservationId);
-
-        inventory.increaseAvailability(roomType);
-
-        confirmedBookings.remove(reservationId);
-
-        System.out.println("Booking cancelled successfully. Inventory restored for room type: " + roomType);
-
-        System.out.println("\nRollback History (Most Recent First):");
-        System.out.println("Released Reservation ID: " + rollbackStack.peek());
-
-        System.out.println("\nUpdated " + roomType + " Room Availability: " + inventory.getAvailability(roomType));
     }
 }
 
@@ -61,11 +77,25 @@ public class HotelBookingApp {
 
     public static void main(String[] args) {
 
+        System.out.println("Concurrent Booking Simulation");
+
+        BookingQueue queue = new BookingQueue();
         RoomInventory inventory = new RoomInventory();
-        CancellationService service = new CancellationService();
 
-        service.addBooking("Single-1");
+        queue.addRequest(new Reservation("Abhishek", "Single"));
+        queue.addRequest(new Reservation("Rahul", "Single"));
+        queue.addRequest(new Reservation("Priya", "Single"));
 
-        service.cancelBooking("Single-1", "Single", inventory);
+        Thread t1 = new BookingProcessor(queue, inventory);
+        Thread t2 = new BookingProcessor(queue, inventory);
+        Thread t3 = new BookingProcessor(queue, inventory);
+
+        t1.setName("Thread-1");
+        t2.setName("Thread-2");
+        t3.setName("Thread-3");
+
+        t1.start();
+        t2.start();
+        t3.start();
     }
 }
