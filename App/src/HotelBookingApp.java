@@ -1,7 +1,8 @@
+
+import java.util.HashMap;
 public class HotelBookingApp {
 
-
-    public abstract class Room {
+    abstract class Room {
 
         private String type;
         private int beds;
@@ -31,7 +32,7 @@ public class HotelBookingApp {
             return price;
         }
 
-        public abstract void displayDetails();
+        public abstract void displayDetails(int available);
     }
 
     class SingleRoom extends Room {
@@ -40,11 +41,12 @@ public class HotelBookingApp {
             super("Single Room", 1, 250, 1500);
         }
 
-        public void displayDetails() {
+        public void displayDetails(int available) {
             System.out.println("Single Room:");
             System.out.println("Beds: " + getBeds());
             System.out.println("Size: " + getSize() + " sqft");
             System.out.println("Price per night: " + getPrice());
+            System.out.println("Available: " + available + "\n");
         }
     }
 
@@ -54,11 +56,12 @@ public class HotelBookingApp {
             super("Double Room", 2, 400, 2500);
         }
 
-        public void displayDetails() {
+        public void displayDetails(int available) {
             System.out.println("Double Room:");
             System.out.println("Beds: " + getBeds());
             System.out.println("Size: " + getSize() + " sqft");
             System.out.println("Price per night: " + getPrice());
+            System.out.println("Available: " + available + "\n");
         }
     }
 
@@ -68,11 +71,45 @@ public class HotelBookingApp {
             super("Suite Room", 3, 750, 5000);
         }
 
-        public void displayDetails() {
+        public void displayDetails(int available) {
             System.out.println("Suite Room:");
             System.out.println("Beds: " + getBeds());
             System.out.println("Size: " + getSize() + " sqft");
             System.out.println("Price per night: " + getPrice());
+            System.out.println("Available: " + available);
+        }
+    }
+
+    class RoomInventory {
+
+        private HashMap<String, Integer> inventory;
+
+        public RoomInventory() {
+            inventory = new HashMap<>();
+            inventory.put("Single Room", 5);
+            inventory.put("Double Room", 3);
+            inventory.put("Suite Room", 0); // intentionally 0 to test filtering
+        }
+
+        public int getAvailability(String roomType) {
+            return inventory.getOrDefault(roomType, 0);
+        }
+    }
+
+    class RoomSearchService {
+
+        public void searchAvailableRooms(RoomInventory inventory, Room[] rooms) {
+
+            System.out.println("Hotel Room Initialization\n");
+
+            for (Room room : rooms) {
+
+                int available = inventory.getAvailability(room.getType());
+
+                if (available > 0) { // filter unavailable rooms
+                    room.displayDetails(available);
+                }
+            }
         }
     }
 
@@ -80,24 +117,17 @@ public class HotelBookingApp {
 
         public static void main(String[] args) {
 
-            System.out.println("Hotel Room Initialization\n");
+            RoomInventory inventory = new RoomInventory();
 
-            Room single = new SingleRoom();
-            Room doubleRoom = new DoubleRoom();
-            Room suite = new SuiteRoom();
+            Room[] rooms = {
+                    new SingleRoom(),
+                    new DoubleRoom(),
+                    new SuiteRoom()
+            };
 
-            int singleAvailable = 5;
-            int doubleAvailable = 3;
-            int suiteAvailable = 2;
+            RoomSearchService searchService = new RoomSearchService();
 
-            single.displayDetails();
-            System.out.println("Available: " + singleAvailable + "\n");
-
-            doubleRoom.displayDetails();
-            System.out.println("Available: " + doubleAvailable + "\n");
-
-            suite.displayDetails();
-            System.out.println("Available: " + suiteAvailable);
+            searchService.searchAvailableRooms(inventory, rooms);
         }
     }
 }
